@@ -52,13 +52,14 @@ app.post('/api/distance', async (req, res) => {
 
     for (const rawAmenity of amenities) {
       const amenity = rawAmenity.replace(/\*\*/g, '').trim();
+      if (!amenity) continue;
 
       let destCoords;
       if (isHardcodedAmenity(amenity)) {
         destCoords = HARDCODED_LOCATIONS[amenity];
         console.log(`📦 Using hardcoded coords for ${amenity}: ${destCoords}`);
       } else {
-        const searchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(amenity)}&inputtype=textquery&locationbias=point:${originString}&key=${GOOGLE_MAPS_API_KEY}`;
+        const searchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(amenity)}&inputtype=textquery&locationbias=circle:15000@${originString}&fields=geometry&key=${GOOGLE_MAPS_API_KEY}`;
         const searchRes = await fetch(searchUrl);
         const searchData = await searchRes.json();
         const candidate = searchData.candidates?.[0];
@@ -72,7 +73,7 @@ app.post('/api/distance', async (req, res) => {
         console.log(`🔍 ${amenity} found at ${destCoords}`);
       }
 
-      const distUrl = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originString}&destinations=${destCoords}&key=${GOOGLE_MAPS_API_KEY}`;
+      const distUrl = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originString}&destinations=${destCoords}&mode=driving&key=${GOOGLE_MAPS_API_KEY}`;
       const distRes = await fetch(distUrl);
       const distData = await distRes.json();
 
@@ -90,9 +91,11 @@ app.post('/api/distance', async (req, res) => {
     }
 
     results.sort((a, b) => {
-      const kmA = parseFloat(a.distance.replace(' km', '').replace(',', ''));
-      const kmB = parseFloat(b.distance.replace(' km', '').replace(',', ''));
-      return kmA - kmB;
+      const getKm = str => {
+        if (!str.includes('km')) return parseFloat(str.replace(' m', '')) / 1000;
+        return parseFloat(str.replace(' km', '').replace(',', ''));
+      };
+      return getKm(a.distance) - getKm(b.distance);
     });
 
     const output = results.map(r => `${r.distance} (${r.duration}), ${r.name}`);
