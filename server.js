@@ -27,12 +27,18 @@ function isHardcodedAmenity(name) {
 }
 
 app.post('/api/distance', async (req, res) => {
-  const { address, amenities } = req.body;
+  const { input } = req.body;
 
-  console.log(`📍 Starting distance check for: ${address}`);
-  if (!address || !Array.isArray(amenities)) {
+  if (!input || typeof input !== 'string') {
     return res.status(400).json({ error: 'Invalid request format' });
   }
+
+  const lines = input.split('\n').map(l => l.trim()).filter(Boolean);
+  const address = lines[0];
+  const amenities = lines.slice(1);
+
+  console.log(`📍 Address: ${address}`);
+  console.log(`📦 Amenities: ${amenities.join(', ')}`);
 
   try {
     const encodedAddress = encodeURIComponent(address);
@@ -99,7 +105,7 @@ app.post('/api/distance', async (req, res) => {
     });
 
     const output = results.map(r => `${r.distance} (${r.duration}), ${r.name}`);
-    res.json({ address, results: output });
+    res.json({ result: output.join('\n') });
 
   } catch (err) {
     console.error('❌ Backend error:', err);
@@ -108,5 +114,5 @@ app.post('/api/distance', async (req, res) => {
 });
 
 app.listen(5000, () => {
-  console.log('✅ Backend running on http://localhost:5000');
+  console.log('✅ Backend running at http://localhost:5000');
 });
